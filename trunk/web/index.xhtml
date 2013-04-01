@@ -1,0 +1,358 @@
+<!DOCTYPE HTML>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:p="http://primefaces.org/ui" 
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core" 
+      xmlns:ui="http://java.sun.com/jsf/facelets">
+
+    <f:view locale="#{psoViewBean.currentLanguage}"
+            contentType="text/html"
+            encoding="UTF-8">
+        <h:head>
+            <title>#{msg['title']}</title>
+            <script type="text/javascript" src="#{facesContext.externalContext.requestContextPath}/resources/js/psoView.js"></script>
+            <!--Bibliotecas utilizadas pelo DWR.-->
+            <script type="text/javascript" src="#{facesContext.externalContext.requestContextPath}/dwr/engine.js"></script>
+            <script type="text/javascript" src="#{facesContext.externalContext.requestContextPath}/dwr/interface/PSOViewAjax.js"></script>
+            <script type="text/javascript" src="#{facesContext.externalContext.requestContextPath}/dwr/util.js"></script>
+            <!--Bibliotecas utilizadas para construir o gráfico.-->
+            <script type="text/javascript" src="#{facesContext.externalContext.requestContextPath}/resources/js/graph3d.js"></script>
+            <script type="text/javascript" src="#{facesContext.externalContext.requestContextPath}/resources/js/jsapi.js"></script>
+            <script type="text/javascript" src="#{facesContext.externalContext.requestContextPath}/resources/js/vizualization.js"></script>            
+            <script type="text/javascript" src="#{facesContext.externalContext.requestContextPath}/resources/js/format+pt_BR,default.js"></script>
+            <!--Customização e estilo.-->
+            <link rel="shorcut icon" href="resources/img/icon.png" type="image/x-icon"/>
+            <link href="#{facesContext.externalContext.requestContextPath}/resources/css/style.css" rel="stylesheet" type="text/css"/>
+
+            <script>
+                //Função que define configurações ao carregar a página.                
+                function fncOnLoad() {
+                    dwr.engine.setActiveReverseAjax(true);
+                    //                    dwr.engine.setNotifyServerOnPageUnload(true, true);
+                    dwr.engine.setErrorHandler(null);
+                    //                    dwr.engine.setAsync(false);
+                    
+                    //Carrega a API do google para poder usar o DataTable.
+                    google.load('visualization', '1');
+                
+                    //Define a função de callback após carregar
+                    google.setOnLoadCallback(drawVisualization);
+                    drawVisualization();
+                }
+            </script>
+        </h:head>
+        <h:body onload="fncOnLoad();">
+            <p:growl
+                autoUpdate="true"
+                id="messages"/>
+
+            <p:ajaxStatus style="width:16px;height:16px;" 
+                          id="ajaxStatusPanel">
+                <f:facet name="start">  
+                    <h:graphicImage value="resources/img/loading.gif"/>  
+                </f:facet>  
+                <f:facet name="complete">  
+                    <h:outputText value=""/>  
+                </f:facet>  
+            </p:ajaxStatus>
+
+            <div id="pagina">
+                <h:form id="form"
+                        prependId="false">
+                    <p:hotkey bind="ctrl+a" oncomplete="refreshGraph()"/>
+                    <div id="cabecalho">
+                        <div id="logo">
+                            <p:graphicImage value="resources/img/logo.png"
+                                            width="400"/>
+                        </div>
+                        <div id="language">
+                            <ui:repeat value="#{psoViewBean.language}"
+                                       var="ling">
+                                <p:commandLink update="@form"
+                                               actionListener="#{psoViewBean.changeLanguage(ling)}"
+                                               process="@form"
+                                               oncomplete="refreshGraph();"
+                                               title="#{msg[ling]}">
+                                    <p:graphicImage value="/resources/img/#{ling}.png"/>
+                                </p:commandLink>    
+                            </ui:repeat>
+                        </div>
+                    </div>
+                    <div id="esquerda">
+                        <p:panel header="#{msg['label.pso.parameters2']}"
+                                 styleClass="painel">
+                            <p:panelGrid columns="1"
+                                         style="border:none!important;"
+                                         id="grid_esquerda">
+                                <p:selectOneMenu  value="#{psoViewBean.function}"
+                                                  converter="#{functionConverter}"
+                                                  style="width: 180px;">
+                                    <f:selectItems value="#{psoViewBean.functions}"
+                                                   var="func"
+                                                   itemLabel="#{msg[func.descricao]}"
+                                                   itemValue="#{func}"/>
+                                    <p:ajax update="@form"
+                                            event="change"
+                                            oncomplete="drawVisualization();"/>
+                                </p:selectOneMenu>
+                            </p:panelGrid>
+                            <p:spacer height="20"/>
+                            <p:panelGrid columns="2">
+                                <h:outputLabel value="#{msg['label.function.yup']}"/>
+                                <p:inputText id="yup"
+                                             value="#{psoViewBean.function.YUp}"
+                                             size="5"
+                                             onkeyup="changeValue('yup');"
+                                             onkeypress="return justNumber(event,true, true);"
+                                             required="true"
+                                             requiredMessage="#{msg['requiredMessage.function.ylow']}"
+                                             title="#{msg['title.function.yup']}"/>
+
+                                <h:outputLabel value="#{msg['label.function.ylow']}"/>
+                                <p:inputText id="ylow"
+                                             value="#{psoViewBean.function.YLow}"
+                                             size="5"
+                                             onkeyup="changeValue('ylow');"
+                                             required="true"
+                                             requiredMessage="#{msg['requiredMessage.function.yup']}"
+                                             title="#{msg['title.function.ylow']}"
+                                             onkeypress="return justNumber(event,true, true)"/>
+                                <p:spacer height="20"/>
+                                <p:spacer height="20"/>
+                                <h:outputLabel value="#{msg['label.function.delay']}"/>
+                                <p:inputText value="#{psoViewBean.delay}"
+                                             id="delay"
+                                             size="5"
+                                             required="true"
+                                             requiredMessage="#{msg['requiredMessage.function.delay']}"
+                                             title="#{msg['title.function.delay']}"
+                                             onkeypress="return justNumber(event)"
+                                             onkeyup="changeValue('delay');"/>
+
+                                <p:spacer height="20"/>
+                                <p:spacer height="20"/>
+
+                                <h:outputLabel value="#{msg['label.function.showAxies']}"
+                                               title="#{msg['title.function.showAxies']}"/>
+                                <p:selectBooleanCheckbox widgetVar="showAxes"
+                                                         value="true">
+                                    <p:ajax  oncomplete="refreshGraph()"/>  
+                                </p:selectBooleanCheckbox>
+
+                                <h:outputLabel value="#{msg['label.function.showGrid']}"
+                                               title="#{msg['title.function.showGrid']}"/>
+                                <p:selectBooleanCheckbox widgetVar="showGrid"
+                                                         value="true">
+                                    <p:ajax  oncomplete="refreshGraph()"/>  
+                                </p:selectBooleanCheckbox>
+
+                                <h:outputLabel value="#{msg['label.function.perspective']}"
+                                               title="#{msg['title.function.perspective']}"/>
+                                <p:selectBooleanCheckbox widgetVar="perspective"
+                                                         value="true">
+                                    <p:ajax  oncomplete="refreshGraph()"/>  
+                                </p:selectBooleanCheckbox>
+
+                                <h:outputLabel value="#{msg['label.function.shadow']}"
+                                               title="#{msg['title.function.shadow']}"/>
+                                <p:selectBooleanCheckbox widgetVar="shadow">
+                                    <p:ajax  oncomplete="refreshGraph()"/>  
+                                </p:selectBooleanCheckbox>
+
+                                <h:outputLabel value="#{msg['label.function.keepAspectRatio']}"
+                                               title="#{msg['title.function.keepAspectRatio']}"/>
+                                <p:selectBooleanCheckbox widgetVar="keepAspectRatio">
+                                    <p:ajax  oncomplete="refreshGraph()"/>  
+                                </p:selectBooleanCheckbox>
+                            </p:panelGrid>
+
+                            <p:spacer height="20"/>
+                            <p:panelGrid columns="1">
+                                <h:outputLabel value="#{msg['label.function.expression']}"
+                                               rendered="#{psoViewBean.buildFunction()}"/>
+                                <p:autoComplete value="#{psoViewBean.currentExpression}"
+                                                oncomplete="drawVisualization()"
+                                                rendered="#{psoViewBean.buildFunction()}"
+                                                completeMethod="#{psoViewBean.completeFunction}"
+                                                maxResults="5"
+                                                queryDelay="100"
+                                                size="17"
+                                                title="#{msg['title.function.expression']}">
+                                    <p:ajax event="keyup"
+                                            listener="#{psoViewBean.validateExpression()}"
+                                            oncomplete="drawUserDefined(xhr, status, args);"/>
+                                </p:autoComplete>
+                            </p:panelGrid>
+                        </p:panel>
+                    </div>
+                    <div id="direita">
+                        <p:panel header="#{msg['label.pso.parameters']}"
+                                 styleClass="painel">
+                            <p:panelGrid columns="1"
+                                         id="grid_direita">
+
+                                <h:outputText value="#{msg['label.pso.parameters2']}: "/>
+                                <p:selectOneRadio layout="pageDirection"
+                                                  value="#{psoViewBean.pso.inertialFunction}">
+                                    <f:selectItem itemLabel="#{msg['label.pso.diversity']}" 
+                                                  itemValue="1"/>
+                                    <f:selectItem itemLabel="#{msg['label.pso.jiao']}" 
+                                                  itemValue="2"/>
+                                </p:selectOneRadio>
+
+                                <p:separator/>
+
+                                <p:panelGrid columns="2">
+                                    <h:outputLabel value="#{msg['label.pso.iterations']}"/>
+                                    <p:inputText value="#{psoViewBean.pso.niter}"
+                                                 size="5"
+                                                 required="true"
+                                                 requiredMessage="#{msg['requiredMessage.pso.iterations']}"
+                                                 title="#{msg['title.pso.iterations']}"
+                                                 onkeypress="return justNumber(event)"/>
+
+                                    <h:outputLabel value="#{msg['label.pso.swarm']}"/>
+                                    <p:inputText value="#{psoViewBean.pso.npt}"
+                                                 size="5"
+                                                 required="true"
+                                                 requiredMessage="#{msg['requiredMessage.pso.swarm']}"
+                                                 title="#{msg['title.pso.swarm']}"
+                                                 onkeypress="return justNumber(event)"/>
+
+                                    <h:outputLabel value="#{msg['label.pso.error']}"/>
+                                    <p:inputText value="#{psoViewBean.pso.eps}"
+                                                 size="5"
+                                                 required="true"
+                                                 requiredMessage="#{msg['requiredMessage.pso.error']}"
+                                                 title="#{msg['title.pso.error']}"
+                                                 onkeypress="return justNumber(event,false,true)"/>
+
+                                    <h:outputLabel value="#{msg['label.pso.c1']}"/>
+                                    <p:inputText value="#{psoViewBean.pso.c1}"
+                                                 size="5"
+                                                 required="true"
+                                                 requiredMessage="#{msg['requiredMessage.pso.c1']}"
+                                                 title="#{msg['title.pso.c1']}"
+                                                 onkeypress="return justNumber(event,false,true)"/>
+
+                                    <h:outputLabel value="#{msg['label.pso.c2']}"/>
+                                    <p:inputText value="#{psoViewBean.pso.c2}"
+                                                 size="5"
+                                                 required="true"
+                                                 requiredMessage="#{msg['requiredMessage.pso.c2']}"
+                                                 title="#{msg['title.pso.c2']}"
+                                                 onkeypress="return justNumber(event,false,true)"/>
+
+                                    <h:outputLabel value="#{msg['label.pso.wi']}"/>
+                                    <p:inputText value="#{psoViewBean.pso.wi}"
+                                                 size="5"
+                                                 required="true"
+                                                 requiredMessage="#{msg['requiredMessage.pso.wi']}"
+                                                 title="#{msg['title.pso.wi']}"
+                                                 onkeypress="return justNumber(event,false,true)"/>
+
+                                    <h:outputLabel value="#{msg['label.pso.wf']}"/>
+                                    <p:inputText value="#{psoViewBean.pso.wf}"
+                                                 size="5"
+                                                 required="true"
+                                                 requiredMessage="#{msg['requiredMessage.pso.wf']}"
+                                                 title="#{msg['title.pso.wf']}"
+                                                 onkeypress="return justNumber(event,false,true)"/>
+
+                                    <h:outputLabel value="#{msg['label.pso.nps']}"/>
+                                    <p:inputText value="#{psoViewBean.pso.nps}"
+                                                 size="5"
+                                                 required="true"
+                                                 requiredMessage="#{msg['requiredMessage.pso.nps']}"
+                                                 title="#{msg['title.pso.nps']}"
+                                                 onkeypress="return justNumber(event)"/>
+                                </p:panelGrid>
+                                <p:separator/>
+                            </p:panelGrid>
+                            <center>
+                                <h:panelGrid columns="1">
+                                    <p:commandButton value="#{msg['label.pso.run']}"
+                                                     ajax="true"
+                                                     style="width: 110px;"
+                                                     actionListener="#{psoViewBean.optimize}"
+                                                     title="#{msg['title.pso.run']}"
+                                                     update=":formDialog"/>
+                                    <h:outputText />
+                                    <p:commandButton 
+                                        value="#{msg['label.pso.results']}"
+                                        style="width: 110px;"
+                                        type="button"
+                                        onclick="resultsDialog.show();"
+                                        title="#{msg['title.pso.results']}"/>
+                                </h:panelGrid>
+                            </center>
+                        </p:panel>
+                    </div>                        
+                    <div id="centro">
+                        <center>
+                            <div id="desenho" style="width: 500px; height: 450px;"/>
+                        </center>
+                    </div>
+                    <div id="rodape">
+                        <p:panel 
+                            header="#{msg['label.about']}"
+                            toggleable="true"
+                            collapsed="false"
+                            toggleSpeed="200">
+                            <b><p>Trabalho apresentado como requisito parcial para obtenção do grau de Bacharel em Sistemas de Informação oferecido pelo Centro de Educação Superior do Alto Vale do Itajaí da UDESC</p></b>
+                            <br/>
+                            <b><p>Autor: Ricardo Grunitzki</p></b>
+                        </p:panel>
+                    </div>
+                </h:form>
+            </div>
+            <h:form id="formDialog">
+                <p:dialog visible="false"
+                          widgetVar="resultsDialog"
+                          id="resultsDialogId"
+                          modal="false"
+                          position="bottom"
+                          resizable="false"
+                          dynamic="false"
+                          showEffect="fade"
+                          hideEffect="fade"
+                          closable="true"
+                          header="#{msg['label.pso.results']}">
+                    <p:panelGrid columns="2"
+                                 style="text-align: left;">
+
+                        <h:outputText value="#{msg['label.pso.x2']} : "/>
+                        <h:outputText value="#{psoViewBean.pso.getgBest().posicao[0]}">
+                            <f:convertNumber maxFractionDigits="6"/>
+                        </h:outputText>
+
+                        <h:outputText value="#{msg['label.pso.y2']} : "/>
+                        <h:outputText value="#{psoViewBean.pso.getgBest().posicao[1]}">
+                            <f:convertNumber maxFractionDigits="6"/>
+                        </h:outputText>
+
+                        <h:outputText value="#{msg['label.pso.z2']} : "/>
+                        <h:outputText value="#{psoViewBean.pso.getgBest().fitness}">
+                            <f:convertNumber maxFractionDigits="6"/>
+                        </h:outputText>
+
+                        <h:outputText value="#{msg['label.pso.iterations']} : "/>
+                        <h:outputText value="#{psoViewBean.pso.kiter}">
+                            <f:convertNumber maxFractionDigits="6"/>
+                        </h:outputText>
+
+                        <h:outputText value="#{msg['label.pso.functionCalls']} : "/>
+                        <h:outputText value="#{psoViewBean.pso.ncall}">
+                            <f:convertNumber maxFractionDigits="6"/>
+                        </h:outputText>
+
+                        <h:outputText value="#{msg['label.pso.wFinal']} : "/>
+                        <h:outputText value="#{psoViewBean.pso.w}">
+                            <f:convertNumber maxFractionDigits="2"/>
+                        </h:outputText>
+                    </p:panelGrid>
+                </p:dialog>
+            </h:form>
+        </h:body>
+    </f:view>
+</html>

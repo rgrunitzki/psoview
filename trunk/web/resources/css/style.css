@@ -1,0 +1,75 @@
+*{
+    padding: 0;
+    margin: 0;
+}
+
+body{
+    text-align: center;
+}
+
+#pagina{
+    width: 990px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#cabecalho{
+    height: 70px;
+    margin-bottom: 20px;
+}
+
+#logo{
+    margin-left:0px;
+    float:left;
+}
+
+#language{
+    margin-top: 30px;
+    margin-right: 40px;
+    float:right;
+}
+
+#esquerda{
+    width: 220px;
+    float: left;
+    text-align: left;
+}
+
+#centro{
+    margin-left: auto;
+    margin-right: auto;
+    width: 500px;
+    text-align: center;
+}
+#direita{
+    width: 220px;
+    float: right;
+    text-align: left;
+}
+
+#rodape{
+    width: 1000px;
+    padding-top: 10px;
+    clear:both;
+}
+
+#rodape p{
+    font-size: 14px;
+}
+
+
+/*primefaces*/
+
+.ui-panelgrid tr, td {
+    border:0 !important;
+}
+
+.ui-widget {  
+    font-size: 16px !important;  
+}  
+
+.painel{
+    height: 565px;
+    width: 222px;
+    margin: 0px;
+}
